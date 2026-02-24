@@ -17,6 +17,10 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { ListToolsRequestSchema, CallToolRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import { GmailTools } from './tools/gmail.js';
 import { CalendarTools } from './tools/calendar.js';
+import { GmailSettingsTools } from './tools/gmail-settings.js';
+import { CalendarAclTools } from './tools/calendar-acl.js';
+import { AdminTools } from './tools/admin.js';
+import { GroupsSettingsTools } from './tools/groups-settings.js';
 import { GAuthService } from './services/gauth.js';
 import { ToolHandler } from './types/tool-handler.js';
 
@@ -79,6 +83,10 @@ class GoogleWorkspaceServer {
   private tools!: {
     gmail: GmailTools;
     calendar: CalendarTools;
+    gmailSettings: GmailSettingsTools;
+    calendarAcl: CalendarAclTools;
+    admin: AdminTools;
+    groupsSettings: GroupsSettingsTools;
   };
 
   constructor(config: ServerConfig) {
@@ -98,7 +106,11 @@ class GoogleWorkspaceServer {
     // Initialize tools after OAuth2 client is ready
     this.tools = {
       gmail: new GmailTools(this.gauth),
-      calendar: new CalendarTools(this.gauth)
+      calendar: new CalendarTools(this.gauth),
+      gmailSettings: new GmailSettingsTools(this.gauth),
+      calendarAcl: new CalendarAclTools(this.gauth),
+      admin: new AdminTools(this.gauth),
+      groupsSettings: new GroupsSettingsTools(this.gauth)
     };
 
     this.setupHandlers();
@@ -142,7 +154,11 @@ class GoogleWorkspaceServer {
       return {
         tools: [
           ...this.tools.gmail.getTools(),
-          ...this.tools.calendar.getTools()
+          ...this.tools.gmailSettings.getTools(),
+          ...this.tools.calendar.getTools(),
+          ...this.tools.calendarAcl.getTools(),
+          ...this.tools.admin.getTools(),
+          ...this.tools.groupsSettings.getTools()
         ]
       };
     });
@@ -163,11 +179,12 @@ class GoogleWorkspaceServer {
         }
 
         // Special case for list_accounts tools which don't require user_id
-        if (name === 'gmail_list_accounts' || name === 'calendar_list_accounts') {
+        if (name === 'gmail_list_accounts' || name === 'calendar_list_accounts' || name === 'admin_list_accounts') {
           try {
-            // Route tool calls to appropriate handler
             let result;
-            if (name.startsWith('gmail_')) {
+            if (name === 'admin_list_accounts') {
+              result = await this.tools.admin.handleTool(name, args);
+            } else if (name.startsWith('gmail_')) {
               result = await this.tools.gmail.handleTool(name, args);
             } else if (name.startsWith('calendar_')) {
               result = await this.tools.calendar.handleTool(name, args);
@@ -213,12 +230,21 @@ class GoogleWorkspaceServer {
         }
 
         // Route tool calls to appropriate handler
+        // Order matters: more specific prefixes before general ones
         try {
           let result;
-          if (name.startsWith('gmail_')) {
+          if (name.startsWith('gmail_settings_')) {
+            result = await this.tools.gmailSettings.handleTool(name, args);
+          } else if (name.startsWith('gmail_')) {
             result = await this.tools.gmail.handleTool(name, args);
+          } else if (name.startsWith('calendar_acl_') || name === 'calendar_freebusy' || name === 'calendar_get_settings') {
+            result = await this.tools.calendarAcl.handleTool(name, args);
           } else if (name.startsWith('calendar_')) {
             result = await this.tools.calendar.handleTool(name, args);
+          } else if (name.startsWith('admin_')) {
+            result = await this.tools.admin.handleTool(name, args);
+          } else if (name.startsWith('groups_')) {
+            result = await this.tools.groupsSettings.handleTool(name, args);
           } else {
             throw new Error(`Unknown tool: ${name}`);
           }
