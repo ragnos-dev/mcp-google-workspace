@@ -141,6 +141,64 @@ export class CalendarTools {
         }
       },
       {
+        name: 'calendar_update_event',
+        description: 'Updates an existing event in the specified Google Calendar. Only provided fields are updated.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            [USER_ID_ARG]: {
+              type: 'string',
+              description: 'Email address of the user'
+            },
+            [CALENDAR_ID_ARG]: {
+              type: 'string',
+              description: 'Calendar ID containing the event. Use "primary" for the primary calendar.',
+              default: 'primary'
+            },
+            event_id: {
+              type: 'string',
+              description: 'The ID of the calendar event to update'
+            },
+            summary: {
+              type: 'string',
+              description: 'New title of the event (optional)'
+            },
+            start_time: {
+              type: 'string',
+              description: 'New start time in RFC3339 format (optional)'
+            },
+            end_time: {
+              type: 'string',
+              description: 'New end time in RFC3339 format (optional)'
+            },
+            location: {
+              type: 'string',
+              description: 'New location of the event (optional)'
+            },
+            description: {
+              type: 'string',
+              description: 'New description or notes for the event (optional)'
+            },
+            attendees: {
+              type: 'array',
+              items: { type: 'string' },
+              description: 'Updated list of attendee email addresses (replaces existing attendees)'
+            },
+            send_notifications: {
+              type: 'boolean',
+              description: 'Whether to send update notifications to attendees',
+              default: true
+            },
+            timezone: {
+              type: 'string',
+              description: 'Timezone for the event times (e.g. \'America/New_York\'). Defaults to UTC.',
+              default: 'UTC'
+            }
+          },
+          required: [USER_ID_ARG, 'event_id']
+        }
+      },
+      {
         name: 'calendar_delete_event',
         description: 'Deletes an event from the specified Google Calendar.',
         inputSchema: {
@@ -181,6 +239,8 @@ export class CalendarTools {
         return this.getCalendarEvents(args);
       case 'calendar_create_event':
         return this.createCalendarEvent(args);
+      case 'calendar_update_event':
+        return this.updateCalendarEvent(args);
       case 'calendar_delete_event':
         return this.deleteCalendarEvent(args);
       default:
@@ -339,7 +399,7 @@ export class CalendarTools {
       const response = await this.calendar.events.insert({
         calendarId: args[CALENDAR_ID_ARG] || 'primary',
         requestBody: event,
-        sendUpdates: args.send_notifications ? 'all' : 'none'
+        sendUpdates: args.send_notifications !== false ? 'all' : 'none'
       });
 
       return [{
@@ -348,6 +408,49 @@ export class CalendarTools {
       }];
     } catch (error) {
       console.error('Error creating calendar event:', error);
+      throw error;
+    }
+  }
+
+  private async updateCalendarEvent(args: Record<string, any>): Promise<Array<TextContent>> {
+    const userId = args[USER_ID_ARG];
+    const eventId = args.event_id;
+
+    if (!userId) {
+      throw new Error(`Missing required argument: ${USER_ID_ARG}`);
+    }
+    if (!eventId) {
+      throw new Error('Missing required argument: event_id');
+    }
+
+    try {
+      const calendarId = args[CALENDAR_ID_ARG] || 'primary';
+      const timezone = args.timezone || 'UTC';
+
+      // Fetch existing event first for patch merge
+      const existing = await this.calendar.events.get({ calendarId, eventId });
+      const patch: Record<string, any> = {};
+
+      if (args.summary !== undefined) patch.summary = args.summary;
+      if (args.location !== undefined) patch.location = args.location;
+      if (args.description !== undefined) patch.description = args.description;
+      if (args.start_time !== undefined) patch.start = { dateTime: args.start_time, timeZone: timezone };
+      if (args.end_time !== undefined) patch.end = { dateTime: args.end_time, timeZone: timezone };
+      if (args.attendees !== undefined) patch.attendees = args.attendees.map((email: string) => ({ email }));
+
+      const response = await this.calendar.events.patch({
+        calendarId,
+        eventId,
+        requestBody: patch,
+        sendUpdates: args.send_notifications !== false ? 'all' : 'none'
+      });
+
+      return [{
+        type: 'text',
+        text: JSON.stringify(response.data, null, 2)
+      }];
+    } catch (error) {
+      console.error('Error updating calendar event:', error);
       throw error;
     }
   }
@@ -367,7 +470,7 @@ export class CalendarTools {
       await this.calendar.events.delete({
         calendarId: args[CALENDAR_ID_ARG] || 'primary',
         eventId: eventId,
-        sendUpdates: args.send_notifications ? 'all' : 'none'
+        sendUpdates: args.send_notifications !== false ? 'all' : 'none'
       });
 
       return [{
