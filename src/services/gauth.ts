@@ -17,7 +17,11 @@ const SCOPES = [
   'https://www.googleapis.com/auth/admin.directory.orgunit.readonly',
   'https://www.googleapis.com/auth/admin.directory.domain.readonly',
   'https://www.googleapis.com/auth/admin.directory.customer.readonly',
-  'https://www.googleapis.com/auth/apps.groups.settings'
+  'https://www.googleapis.com/auth/apps.groups.settings',
+  'https://www.googleapis.com/auth/drive',
+  'https://www.googleapis.com/auth/contacts',
+  'https://www.googleapis.com/auth/contacts.other.readonly',
+  'https://www.googleapis.com/auth/tasks'
 ];
 
 export interface AccountInfo {

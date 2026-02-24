@@ -21,6 +21,9 @@ import { GmailSettingsTools } from './tools/gmail-settings.js';
 import { CalendarAclTools } from './tools/calendar-acl.js';
 import { AdminTools } from './tools/admin.js';
 import { GroupsSettingsTools } from './tools/groups-settings.js';
+import { DriveTools } from './tools/drive.js';
+import { ContactsTools } from './tools/contacts.js';
+import { TasksTools } from './tools/tasks.js';
 import { GAuthService } from './services/gauth.js';
 import { ToolHandler } from './types/tool-handler.js';
 
@@ -87,6 +90,9 @@ class GoogleWorkspaceServer {
     calendarAcl: CalendarAclTools;
     admin: AdminTools;
     groupsSettings: GroupsSettingsTools;
+    drive: DriveTools;
+    contacts: ContactsTools;
+    tasks: TasksTools;
   };
 
   constructor(config: ServerConfig) {
@@ -110,7 +116,10 @@ class GoogleWorkspaceServer {
       gmailSettings: new GmailSettingsTools(this.gauth),
       calendarAcl: new CalendarAclTools(this.gauth),
       admin: new AdminTools(this.gauth),
-      groupsSettings: new GroupsSettingsTools(this.gauth)
+      groupsSettings: new GroupsSettingsTools(this.gauth),
+      drive: new DriveTools(this.gauth),
+      contacts: new ContactsTools(this.gauth),
+      tasks: new TasksTools(this.gauth)
     };
 
     this.setupHandlers();
@@ -158,7 +167,10 @@ class GoogleWorkspaceServer {
           ...this.tools.calendar.getTools(),
           ...this.tools.calendarAcl.getTools(),
           ...this.tools.admin.getTools(),
-          ...this.tools.groupsSettings.getTools()
+          ...this.tools.groupsSettings.getTools(),
+          ...this.tools.drive.getTools(),
+          ...this.tools.contacts.getTools(),
+          ...this.tools.tasks.getTools()
         ]
       };
     });
@@ -245,6 +257,12 @@ class GoogleWorkspaceServer {
             result = await this.tools.admin.handleTool(name, args);
           } else if (name.startsWith('groups_')) {
             result = await this.tools.groupsSettings.handleTool(name, args);
+          } else if (name.startsWith('drive_')) {
+            result = await this.tools.drive.handleTool(name, args);
+          } else if (name.startsWith('contacts_')) {
+            result = await this.tools.contacts.handleTool(name, args);
+          } else if (name.startsWith('tasks_')) {
+            result = await this.tools.tasks.handleTool(name, args);
           } else {
             throw new Error(`Unknown tool: ${name}`);
           }
