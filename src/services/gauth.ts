@@ -11,6 +11,7 @@ const SCOPES = [
   'openid',
   'https://www.googleapis.com/auth/userinfo.email',
   'https://mail.google.com/',
+  'https://www.googleapis.com/auth/gmail.settings.basic',
   'https://www.googleapis.com/auth/calendar',
   'https://www.googleapis.com/auth/admin.directory.user.readonly',
   'https://www.googleapis.com/auth/admin.directory.group.readonly',
